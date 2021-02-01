@@ -95,9 +95,11 @@ if(USE_HAL_API OR USE_LL_API)
 endif(USE_HAL_API OR USE_LL_API)
 
 
+################################################################################
+# AT THIS POINT, USER STARTS WRITING THEIR OWN APPLICATION SPECIFIC STUFF.
+################################################################################
 add_executable(firmware)
 target_sources(firmware PUBLIC main.c)
 target_link_libraries(firmware PRIVATE cmsis_device)
 target_link_libraries(firmware PRIVATE stm32_hal)
 target_link_libraries(firmware PRIVATE cmsis_dsp)
-
