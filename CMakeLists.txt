@@ -7,20 +7,45 @@ project(test
     LANGUAGES C ASM
 )
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+#cmsis core is just a header-only compat layer
 add_library(cmsis_core INTERFACE)
 target_include_directories(cmsis_core INTERFACE "STM32CubeF4/Drivers/CMSIS/Include")
 
-
+# cmsis device has stuff populated by vendor
 add_library(cmsis_device STATIC)
 set(cmsis_device_root "STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx/")
 target_include_directories(cmsis_device PUBLIC "${cmsis_device_root}/Include")
 target_sources(cmsis_device PRIVATE "${cmsis_device_root}/Source/Templates/gcc/startup_stm32f411xe.s")
 target_sources(cmsis_device PUBLIC "${cmsis_device_root}/Source/Templates/system_stm32f4xx.c")
 target_compile_definitions(cmsis_device PUBLIC "STM32F411xE")
-
 target_link_libraries(cmsis_device PUBLIC cmsis_core)
 
+
+# cmsis dsp
+add_library(cmsis_dsp STATIC)
+set(cmsis_dsp_root "STM32CubeF4/Drivers/CMSIS/DSP")
+target_include_directories(cmsis_dsp PUBLIC "${cmsis_dsp_root}/Include")
+file(GLOB_RECURSE cmsis_dsp_sources 
+    "${cmsis_dsp_root}/Source/arm_*.c" 
+    "${cmsis_dsp_root}/Source/arm_*.s" 
+    "${cmsis_dsp_root}/Source/arm_*.S"
+)
+target_sources(cmsis_dsp PUBLIC ${cmsis_dsp_sources})
+
+# for some reason, the bastards didn't explicitly include stdint in their C files...
+target_precompile_headers(cmsis_dsp 
+    PUBLIC 
+        <stdint.h>
+        "STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h"        
+)
+
+# get FPU config and defines from device target
+target_link_libraries(cmsis_dsp PUBLIC cmsis_device)
+
+# @todo SHOULD BE MADE PART OF AN INPUT CMAKE CONFIG FILE
+target_compile_definitions(cmsis_dsp PUBLIC "ARM_MATH_CM4") # this will change based on your processor. 
 
 
 #[[
