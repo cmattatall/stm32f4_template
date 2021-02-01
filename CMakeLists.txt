@@ -38,7 +38,10 @@ target_sources(cmsis_dsp PUBLIC ${cmsis_dsp_sources})
 target_precompile_headers(cmsis_dsp 
     PUBLIC 
         <stdint.h>
-        "STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h"        
+
+        # NOT IDEAL, BUT THE ACTUAL SOURCE FILES DON'T INCLUDE THE DEVICE HEADER...
+        # @todo NEED TO FIND A BETTER WAY TO DO THIS IN THE FUTURE       
+        "STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h" 
 )
 
 # get FPU config and defines from device target
