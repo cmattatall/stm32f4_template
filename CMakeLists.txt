@@ -3,23 +3,28 @@ cmake_minimum_required(VERSION 3.18)
 option(USE_HAL_API "Option to use HAL DRIVER" ON)
 option(USE_LL_API "Option to use the HAL API rather than the LL API" ON)
 option(USE_ARM_MATH "Option to use CMSIS ARM MATH DSP LIBRARY" ON)
-option(USE_RTOS "Option to use CMSIS FreeRTOS Port v2" ON)
+option(USE_RTOS "Option to use CMSIS FreeRTOS Port (port V2 is default)" ON)
+option(RTOS_USE_HEAP_ALLOC "Option to support a dynamic memory allocation scheme within RTOS" OFF)
+
 
 
 project(test 
     LANGUAGES C ASM
 )
 
-# @todo MAKE FUNCTION OF INPUT CONFIG FILE (per target-dev basis)
+# @todo MAKE THESE A FUNCTION OF A DEVICE-PACKAGE-SPECIFIC INPUT CONFIG FILE
 set(stm32cube_dir STM32CubeF4)
 set(stm32cube_hal_dir STM32F4xx_HAL_Driver)
 set(cmsis_device_dir STM32F4xx)
 
 
+# Make path lengths more readable in script
 set(cmsis_dsp_root    "${stm32cube_dir}/Drivers/CMSIS/DSP")
 set(stm32_hal_root    "${stm32cube_dir}/Drivers/${stm32cube_hal_dir}")
 set(cmsis_device_root "${stm32cube_dir}/Drivers/CMSIS/Device/ST/${cmsis_device_dir}/")
 set(freertos_root     "${stm32cube_dir}/Middlewares/Third_Party/FreeRTOS/Source")
+
+set(rtos_port_dir "${freertos_root}/portable")
 
 
 mark_as_advanced(
@@ -30,6 +35,10 @@ mark_as_advanced(
     stm32_hal_root
     cmsis_device_root
     freertos_root
+    rtos_port_dir
+    rtos_port_common_dir
+    rtos_port_compiler_dir
+    rtos_port_cpu_dir
 )
 
 
@@ -94,7 +103,6 @@ if(USE_HAL_API OR USE_LL_API)
 
     # @todo SHOULD BE MADE PART OF AN INPUT CMAKE CONFIG FILE
     target_compile_definitions(stm32_hal PRIVATE "STM32F411xE") # this will change based on your processor. 
-
     target_include_directories(stm32_hal PUBLIC "${stm32_hal_root}/Inc")
     target_include_directories(stm32_hal PUBLIC "${stm32_hal_root}/Inc/Legacy")
 
@@ -112,10 +120,58 @@ if(USE_HAL_API OR USE_LL_API)
 endif(USE_HAL_API OR USE_LL_API)
 
 
+
+
+
+## RTOS CONFIGURATION
 if(USE_RTOS)
 
+    # shared directories between core and port
+    add_library(freeRTOS_shared INTERFACE)
+    target_include_directories(freeRTOS_shared INTERFACE "${freertos_root}/include/")
+    target_link_libraries(freeRTOS_shared INTERFACE project_config)
+
+
+    ############################################################################
+    # RTOS PORT 
+    #(usually this will have to be configured by user based on device)
+    ############################################################################
+    add_library(freeRTOS_port STATIC )
+    target_sources(freeRTOS_port PUBLIC "${rtos_port_dir}/GCC/ARM_CM4F/port.c")
+    target_include_directories(freeRTOS_port PUBLIC "${rtos_port_dir}/GCC/ARM_CM4F")
+    target_link_libraries(freeRTOS_port PUBLIC freeRTOS_shared)
+
+
+    ############################################################################
+    # RTOS CORE
+    ############################################################################
+    add_library(freeRTOS STATIC)
+    target_include_directories(freeRTOS PUBLIC "${freertos_root}/CMSIS_RTOS_V2/")
+    target_sources(freeRTOS PUBLIC
+        "${freertos_root}/croutine.c"
+        "${freertos_root}/event_groups.c"
+        "${freertos_root}/list.c"
+        "${freertos_root}/queue.c"
+        "${freertos_root}/stream_buffer.c"
+        "${freertos_root}/tasks.c"
+        "${freertos_root}/timers.c"
+    )
+
+    # memory management scheme
+    if(RTOS_USE_HEAP_ALLOC)
+        target_sources(freeRTOS PUBLIC "${rtos_port_dir}/MemMang/heap_4.c")
+    endif(RTOS_USE_HEAP_ALLOC)
+
+    target_link_libraries(freeRTOS PUBLIC freeRTOS_shared)
+    target_link_libraries(freeRTOS PUBLIC freeRTOS_port)
 
 endif(USE_RTOS)
+
+
+
+
+
+
 
 
 
@@ -128,3 +184,4 @@ target_sources(firmware PUBLIC main.c)
 target_link_libraries(firmware PRIVATE cmsis_device)
 target_link_libraries(firmware PRIVATE stm32_hal)
 target_link_libraries(firmware PRIVATE cmsis_dsp)
+target_link_libraries(firmware PRIVATE freeRTOS)
