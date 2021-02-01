@@ -5,12 +5,17 @@ option(USE_LL_API "Option to use the HAL API rather than the LL API" ON)
 option(USE_ARM_MATH "Option to use CMSIS ARM MATH DSP LIBRARY" ON)
 option(USE_RTOS "Option to use CMSIS FreeRTOS Port (port V2 is default)" ON)
 option(RTOS_USE_HEAP_ALLOC "Option to support a dynamic memory allocation scheme within RTOS" OFF)
+option(CMAKE_VERBOSE_MAKEFILE "Option to emit verbose makefile info" OFF)
+option(CMAKE_CROSSCOMPILING "Option to cross compile" ON)
 
-
-
-project(test 
+project(
+    PUT_YOUR_TOP_LEVEL_PROJECT_NAME_HERE
+    DESCRIPTION "PUT YOUR TOP LEVEL PROJECT DESCRIPTION HERE"
     LANGUAGES C ASM
 )
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+message("Configuring project : ${PROJECT_NAME}")
 
 # @todo MAKE THESE A FUNCTION OF A DEVICE-PACKAGE-SPECIFIC INPUT CONFIG FILE
 set(stm32cube_dir STM32CubeF4)
@@ -25,7 +30,6 @@ set(cmsis_device_root "${stm32cube_dir}/Drivers/CMSIS/Device/ST/${cmsis_device_d
 set(freertos_root     "${stm32cube_dir}/Middlewares/Third_Party/FreeRTOS/Source")
 
 set(rtos_port_dir "${freertos_root}/portable")
-
 
 mark_as_advanced(
     stm32cube_dir
@@ -51,7 +55,6 @@ execute_process(
 )
 execute_process(COMMAND "sync")
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # explicit interface target for shared include path dependencies
 add_library(project_config INTERFACE)
@@ -167,21 +170,4 @@ if(USE_RTOS)
 
 endif(USE_RTOS)
 
-
-
-
-
-
-
-
-
-
-################################################################################
-# AT THIS POINT, USER STARTS WRITING THEIR OWN APPLICATION SPECIFIC STUFF.
-################################################################################
-add_executable(firmware)
-target_sources(firmware PUBLIC main.c)
-target_link_libraries(firmware PRIVATE cmsis_device)
-target_link_libraries(firmware PRIVATE stm32_hal)
-target_link_libraries(firmware PRIVATE cmsis_dsp)
-target_link_libraries(firmware PRIVATE freeRTOS)
+add_subdirectory(FolderThatContainsTheMainFirmwareProject)
