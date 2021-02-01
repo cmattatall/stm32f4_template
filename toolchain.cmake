@@ -146,14 +146,20 @@ function(add_executable executable)
     set(executable_output_name "${executable}.elf")
     set_target_properties(${executable} PROPERTIES OUTPUT_NAME ${executable_output_name})
 
-    #[[
+
+    if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+        set(OUTPUT_DIR_BASE "${CMAKE_CURRENT_BINARY_DIR}")
+    else()
+        set(OUTPUT_DIR_BASE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+    endif(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+
     add_custom_target(${executable}_postbuild ALL DEPENDS ${executable})
     add_custom_command( 
         TARGET ${executable}_postbuild
         POST_BUILD
         DEPENDS ${executable}
         COMMENT "Built executable \"${executable}\" with the following size:"
-        COMMAND ${CMAKE_SIZE} -B "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${executable_output_name}"
+        COMMAND ${CMAKE_SIZE} -B "${OUTPUT_DIR_BASE}/${executable_output_name}"
     )
 
     add_custom_command( 
@@ -161,7 +167,7 @@ function(add_executable executable)
         POST_BUILD
         DEPENDS ${executable}
         COMMENT "Producing a hex format for ${executable} using ${CMAKE_OBJCOPY}"
-        COMMAND ${CMAKE_OBJCOPY} -O ihex -I elf32-little "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${executable_output_name}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${executable}.hex"
+        COMMAND ${CMAKE_OBJCOPY} -O ihex -I elf32-little "${OUTPUT_DIR_BASE}/${executable_output_name}" "${OUTPUT_DIR_BASE}/${executable}.hex"
     )
 
     add_custom_command( 
@@ -169,7 +175,7 @@ function(add_executable executable)
         POST_BUILD
         DEPENDS ${executable}
         COMMENT "Producing a binary format for ${executable} using ${CMAKE_OBJCOPY}"
-        COMMAND ${CMAKE_OBJCOPY} -O binary -I elf32-little "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${executable_output_name}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${executable}.bin"
+        COMMAND ${CMAKE_OBJCOPY} -O binary -I elf32-little "${OUTPUT_DIR_BASE}/${executable_output_name}" "${OUTPUT_DIR_BASE}/${executable}.bin"
     )
 
     add_custom_command( 
@@ -177,9 +183,8 @@ function(add_executable executable)
         POST_BUILD
         DEPENDS ${executable}
         COMMENT "Generating lss file for ${executable} using ${CMAKE_OBJDUMP}"
-        COMMAND ${CMAKE_OBJDUMP} -xh "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${executable_output_name}" > "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${executable}.lss"
+        COMMAND ${CMAKE_OBJDUMP} -xh "${OUTPUT_DIR_BASE}/${executable_output_name}" > "${OUTPUT_DIR_BASE}/${executable}.lss"
     )
-    #]]
 
 endfunction(add_executable executable)
 endif(NOT COMMAND _add_executable)
