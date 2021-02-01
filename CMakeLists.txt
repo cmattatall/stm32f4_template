@@ -3,17 +3,34 @@ cmake_minimum_required(VERSION 3.18)
 option(USE_HAL_API "Option to use HAL DRIVER" ON)
 option(USE_LL_API "Option to use the HAL API rather than the LL API" ON)
 option(USE_ARM_MATH "Option to use CMSIS ARM MATH DSP LIBRARY" ON)
+option(USE_RTOS "Option to use CMSIS FreeRTOS Port v2" ON)
 
 
 project(test 
     LANGUAGES C ASM
 )
 
-
 # @todo MAKE FUNCTION OF INPUT CONFIG FILE (per target-dev basis)
-set(cmsis_dsp_root "STM32CubeF4/Drivers/CMSIS/DSP")
-set(stm32_hal_root "STM32CubeF4/Drivers/STM32F4xx_HAL_Driver")
-set(cmsis_device_root "STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx/")
+set(stm32cube_dir STM32CubeF4)
+set(stm32cube_hal_dir STM32F4xx_HAL_Driver)
+set(cmsis_device_dir STM32F4xx)
+
+
+set(cmsis_dsp_root    "${stm32cube_dir}/Drivers/CMSIS/DSP")
+set(stm32_hal_root    "${stm32cube_dir}/Drivers/${stm32cube_hal_dir}")
+set(cmsis_device_root "${stm32cube_dir}/Drivers/CMSIS/Device/ST/${cmsis_device_dir}/")
+set(freertos_root     "${stm32cube_dir}/Middlewares/Third_Party/FreeRTOS/Source")
+
+
+mark_as_advanced(
+    stm32cube_dir
+    stm32cube_hal_dir
+    cmsis_device_dir
+    cmsis_dsp_root
+    stm32_hal_root
+    cmsis_device_root
+    freertos_root
+)
 
 
 execute_process(
@@ -93,6 +110,14 @@ if(USE_HAL_API OR USE_LL_API)
     target_link_libraries(stm32_hal PUBLIC cmsis_device)
     target_link_libraries(stm32_hal PUBLIC project_config)
 endif(USE_HAL_API OR USE_LL_API)
+
+
+if(USE_RTOS)
+
+
+endif(USE_RTOS)
+
+
 
 
 ################################################################################
