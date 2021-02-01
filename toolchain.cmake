@@ -123,6 +123,13 @@ find_program(
     REQUIRED
 )
 
+set(STATIC_LIBRARY_SUFFIX ".static")
+set(CMAKE_STATIC_LIBRARY_SUFFIX_C ${STATIC_LIBRARY_SUFFIX})
+set(CMAKE_STATIC_LIBRARY_SUFFIX_CXX ${STATIC_LIBRARY_SUFFIX})
+mark_as_advanced(CMAKE_STATIC_LIBRARY_SUFFIX_C)
+mark_as_advanced(CMAKE_STATIC_LIBRARY_SUFFIX_CXX)
+mark_as_advanced(STATIC_LIBRARY_SUFFIX)
+
 # @todo THIS SHOULD BE LATER MADE PART OF A CMAKE.IN CONFIG FILE 
 # reference for options https://gcc.gnu.org/onlinedocs/gcc/ARM-Options.html
 set(arch_options "-mlittle-endian --specs=nosys.specs -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16")
@@ -166,7 +173,6 @@ function(add_executable executable)
         TARGET ${executable}_postbuild
         POST_BUILD
         DEPENDS ${executable}
-        COMMENT "Producing a hex format for ${executable} using ${CMAKE_OBJCOPY}"
         COMMAND ${CMAKE_OBJCOPY} -O ihex -I elf32-little "${OUTPUT_DIR_BASE}/${executable_output_name}" "${OUTPUT_DIR_BASE}/${executable}.hex"
     )
 
@@ -174,7 +180,6 @@ function(add_executable executable)
         TARGET ${executable}_postbuild
         POST_BUILD
         DEPENDS ${executable}
-        COMMENT "Producing a binary format for ${executable} using ${CMAKE_OBJCOPY}"
         COMMAND ${CMAKE_OBJCOPY} -O binary -I elf32-little "${OUTPUT_DIR_BASE}/${executable_output_name}" "${OUTPUT_DIR_BASE}/${executable}.bin"
     )
 
@@ -182,7 +187,6 @@ function(add_executable executable)
         TARGET ${executable}_postbuild
         POST_BUILD
         DEPENDS ${executable}
-        COMMENT "Generating lss file for ${executable} using ${CMAKE_OBJDUMP}"
         COMMAND ${CMAKE_OBJDUMP} -xh "${OUTPUT_DIR_BASE}/${executable_output_name}" > "${OUTPUT_DIR_BASE}/${executable}.lss"
     )
 
@@ -194,45 +198,63 @@ if(NOT COMMAND _add_library)
 function(add_library library)
     _add_library(${library} ${ARGN})
 
-
-    #[[
-    if(CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-        set(LIBRARY_OBJDUMP_OUTPUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/objdump")
-    else()
-        set(LIBRARY_OBJDUMP_OUTPUT_DIR "${CMAKE_BINARY_DIR}/objdump")
-    endif()
-
-    if(NOT EXISTS "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
-        file(MAKE_DIRECTORY "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
-    endif(NOT EXISTS "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
-
     get_target_property(type ${library} TYPE)
     if(type STREQUAL STATIC_LIBRARY)
         set(libbase "lib${library}")
         set(libname "${libbase}${STATIC_LIBRARY_SUFFIX}")
+        set(POSTBUILD_OBJDUMP ON)
     elseif(type STREQUAL MODULE_LIBRARY)
         set(libbase "lib${library}")
         set(libname "${libbase}${MODULE_LIBRARY_SUFFIX}")
+        set(POSTBUILD_OBJDUMP ON)
     elseif(type STREQUAL SHARED_LIBRARY)
         set(libbase "lib${library}")
         set(libname "${libbase}${SHARED_LIBRARY_SUFFIX}")
+        set(POSTBUILD_OBJDUMP ON)
     elseif(type STREQUAL OBJECT_LIBRARY)
         set(libbase "lib${library}")
         set(libname "${libbase}${OBJECT_LIBRARY_SUFFIX}")
-    elseif(type STREQUAL INTERFACE_LIBRARY)
-        set(libbase "lib${library}")
-        set(libname "${libbase}${INTERFACE_LIBRARY_SUFFIX}")
+        set(POSTBUILD_OBJDUMP ON)
     endif()
-    
-    add_custom_target(${library}_postbuild ALL DEPENDS ${library})
-    add_custom_command( 
-        TARGET ${library}_postbuild
-        POST_BUILD
-        DEPENDS ALL
-        COMMENT "Generating lss file for ${library} using ${CMAKE_OBJDUMP}"
-        COMMAND ${CMAKE_OBJDUMP} -xh "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${libname}" > "${LIBRARY_OBJDUMP_OUTPUT_DIR}/${libname}.lss"
-    )
-    #]]
 
+    # attach objdump post-build target to libs with source files
+    if(POSTBUILD_OBJDUMP)
+
+        if(CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+            set(LIBRARY_OUTPUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        else()
+            set(LIBRARY_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+        endif()
+
+        set(LIBRARY_OBJDUMP_OUTPUT_DIR "${LIBRARY_OUTPUT_DIR}/objdump/${library}")
+
+        if(NOT EXISTS "${LIBRARY_OUTPUT_DIR}")
+            file(MAKE_DIRECTORY "${LIBRARY_OUTPUT_DIR}")
+        elseif(NOT IS_DIRECTORY "${LIBRARY_OUTPUT_DIR}")
+            file(REMOVE_RECURSE "${LIBRARY_OUTPUT_DIR}")
+            file(MAKE_DIRECTORY "${LIBRARY_OUTPUT_DIR}")
+        endif(NOT EXISTS "${LIBRARY_OUTPUT_DIR}")
+
+        if(NOT EXISTS "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
+            file(MAKE_DIRECTORY "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
+        elseif(NOT IS_DIRECTORY "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
+            file(REMOVE_RECURSE "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
+            file(MAKE_DIRECTORY "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
+        endif(NOT EXISTS "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
+
+        get_target_property(${library}_sources ${library} SOURCES)
+        list(LENGTH ${${library}_sources} ${library}_source_list_len)
+        if(${library}_source_list_len GREATER 0)
+            add_custom_target(${library}_postbuild ALL DEPENDS ${library})
+            add_custom_command( 
+                TARGET ${library}_postbuild
+                POST_BUILD
+                DEPENDS ALL
+                COMMENT "Generating lss file for ${library} using ${CMAKE_OBJDUMP}"
+                COMMAND ${CMAKE_OBJDUMP} -xh "${LIBRARY_OUTPUT_DIR}/${libname}" > "${LIBRARY_OBJDUMP_OUTPUT_DIR}/${libname}.lss"
+            )
+        endif(${library}_source_list_len GREATER 0)
+    endif(POSTBUILD_OBJDUMP)
+    
 endfunction(add_library library)
 endif(NOT COMMAND _add_library)
