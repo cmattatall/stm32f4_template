@@ -81,11 +81,9 @@ if(USE_HAL_DRIVER)
 endif(USE_HAL_DRIVER)
 
 
-
-
-#[[
 add_executable(firmware)
 target_sources(firmware PUBLIC main.c)
+target_link_libraries(firmware PRIVATE cmsis_device)
 target_link_libraries(firmware PRIVATE stm32_hal)
+target_link_libraries(firmware PRIVATE cmsis_dsp)
 
-#]]
