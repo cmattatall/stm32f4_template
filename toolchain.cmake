@@ -1,5 +1,3 @@
-
-
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR ARM)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
@@ -134,16 +132,12 @@ mark_as_advanced(STATIC_LIBRARY_SUFFIX)
 # reference for options https://gcc.gnu.org/onlinedocs/gcc/ARM-Options.html
 set(arch_options "-mlittle-endian --specs=nosys.specs -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16")
 
-
 set(shared_options "-ffunction-sections -fdata-sections")
-
-
 set(LINKER_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/linker.ld")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-Wl,--gc-sections,-T,${LINKER_SCRIPT},-Map=my_mapfile.out")
 set(CMAKE_ASM_FLAGS_INIT "${arch_options} ${shared_options}")
 set(CMAKE_C_FLAGS_INIT "${arch_options} ${shared_options}")
 set(CMAKE_CXX_FLAGS_INIT "${arch_options} ${shared_options} -fno-rtti -fno-exceptions")
-
 
 
 if(NOT COMMAND _add_executable)
