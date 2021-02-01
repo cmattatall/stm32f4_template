@@ -68,14 +68,17 @@ target_compile_definitions(stm32_hal PRIVATE "STM32F411xE")
 
 
 if(USE_HAL_DRIVER)
-    set(hal_src_glob_expr "*.c")
+    set(hal_src_glob_expr "*_hal_[^(template_)]*\.c")
 else()
-    set(hal_src_glob_expr ".*_ll*\\.c")
+    set(hal_src_glob_expr "*_ll*\.c")
 endif(USE_HAL_DRIVER)
 file(GLOB_RECURSE stm32_hal_sources "STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Src/${hal_src_glob_expr}")
-
 message("stm32_hal_sources = ${stm32_hal_sources}")
+target_sources(stm32_hal PUBLIC ${stm32_hal_sources})
 
+
+
+#[[
 foreach(src_file ${stm32_hal_sources})
     string(REGEX MATCH ".*template.c" SOURCE_FILE_IS_TEMPLATE ${src_file})
     if(SOURCE_FILE_IS_TEMPLATE)
@@ -83,6 +86,7 @@ foreach(src_file ${stm32_hal_sources})
     endif() 
 endforeach(src_file ${stm32_hal_sources})
 target_sources(stm32_hal PUBLIC "${stm32_hal_sources}")
+#]]
 
 target_link_libraries(stm32_hal PUBLIC cmsis_device)
 target_link_libraries(stm32_hal PUBLIC project_config)
