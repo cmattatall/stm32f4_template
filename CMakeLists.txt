@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
 
 option(USE_HAL_DRIVER "Option to use HAL DRIVER" ON)
+option(USE_ARM_MATH "Option to use CMSIS ARM MATH DSP LIBRARY" ON)
 
 project(test 
     LANGUAGES C ASM
@@ -28,75 +29,56 @@ target_link_libraries(cmsis_device PUBLIC cmsis_core)
 
 
 # cmsis dsp
-add_library(cmsis_dsp STATIC)
-set(cmsis_dsp_root "STM32CubeF4/Drivers/CMSIS/DSP")
-target_include_directories(cmsis_dsp PUBLIC "${cmsis_dsp_root}/Include")
-file(GLOB_RECURSE cmsis_dsp_sources 
-    "${cmsis_dsp_root}/Source/arm_*.c" 
-    "${cmsis_dsp_root}/Source/arm_*.s" 
-    "${cmsis_dsp_root}/Source/arm_*.S"
-)
-target_sources(cmsis_dsp PUBLIC ${cmsis_dsp_sources})
+if(USE_ARM_MATH)
+    add_library(cmsis_dsp STATIC)
+    set(cmsis_dsp_root "STM32CubeF4/Drivers/CMSIS/DSP")
+    target_include_directories(cmsis_dsp PUBLIC "${cmsis_dsp_root}/Include")
+    file(GLOB_RECURSE cmsis_dsp_sources 
+        "${cmsis_dsp_root}/Source/arm_*.c" 
+        "${cmsis_dsp_root}/Source/arm_*.s" 
+        "${cmsis_dsp_root}/Source/arm_*.S"
+    )
+    target_sources(cmsis_dsp PUBLIC ${cmsis_dsp_sources})
 
-# for some reason, the bastards didn't explicitly include stdint in their C files...
-target_precompile_headers(cmsis_dsp 
-    PUBLIC 
-        <stdint.h>
+    # for some reason, the bastards didn't explicitly include stdint in their C files...
+    target_precompile_headers(cmsis_dsp 
+        PUBLIC 
+            <stdint.h>
 
-        # NOT IDEAL, BUT THE ACTUAL SOURCE FILES DON'T INCLUDE THE DEVICE HEADER...
-        # @todo NEED TO FIND A BETTER WAY TO DO THIS IN THE FUTURE       
-        "STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h" 
-)
+            # NOT IDEAL, BUT THE ACTUAL SOURCE FILES DON'T INCLUDE THE DEVICE HEADER...
+            # @todo NEED TO FIND A BETTER WAY TO DO THIS IN THE FUTURE       
+            "STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h" 
+    )
 
-# get FPU config and defines from device target
-target_link_libraries(cmsis_dsp PUBLIC cmsis_device)
+    # get FPU config and defines from device target
+    target_link_libraries(cmsis_dsp PUBLIC cmsis_device)
 
-# @todo SHOULD BE MADE PART OF AN INPUT CMAKE CONFIG FILE
-target_compile_definitions(cmsis_dsp PUBLIC "ARM_MATH_CM4") # this will change based on your processor. 
+    # @todo SHOULD BE MADE PART OF AN INPUT CMAKE CONFIG FILE
+    target_compile_definitions(cmsis_dsp PUBLIC "ARM_MATH_CM4") # this will change based on your processor. 
 
-
-add_library(stm32_hal STATIC)
-set(stm32_hal_root "STM32CubeF4/Drivers/STM32F4xx_HAL_Driver")
-
-target_include_directories(stm32_hal PUBLIC "${stm32_hal_root}/Inc")
-target_include_directories(stm32_hal PUBLIC "${stm32_hal_root}/Inc/Legacy")
-
-
-target_include_directories(stm32_hal PUBLIC "STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Inc/")
-target_include_directories(stm32_hal PUBLIC "STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy")
-target_compile_definitions(stm32_hal PRIVATE "STM32F411xE")
+endif(USE_ARM_MATH)
 
 
 if(USE_HAL_DRIVER)
-    set(hal_src_glob_expr "*_hal_[^(template_)]*\.c")
-else()
-    set(hal_src_glob_expr "*_ll*\.c")
+    add_library(stm32_hal STATIC)
+    set(stm32_hal_root "STM32CubeF4/Drivers/STM32F4xx_HAL_Driver")
+
+    # @todo SHOULD BE MADE PART OF AN INPUT CMAKE CONFIG FILE
+    target_compile_definitions(stm32_hal PRIVATE "STM32F411xE") # this will change based on your processor. 
+
+    target_include_directories(stm32_hal PUBLIC "${stm32_hal_root}/Inc")
+    target_include_directories(stm32_hal PUBLIC "${stm32_hal_root}/Inc/Legacy")
+
+    if(USE_HAL_DRIVER)
+        set(hal_src_glob_expr "*_hal_[^(template_)]*\.c")
+    else()
+        set(hal_src_glob_expr "*_ll_[^(template_)]*\.c")
+    endif(USE_HAL_DRIVER)
+    file(GLOB_RECURSE stm32_hal_sources "STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Src/${hal_src_glob_expr}")
+    target_sources(stm32_hal PUBLIC ${stm32_hal_sources})
+    target_link_libraries(stm32_hal PUBLIC cmsis_device)
+    target_link_libraries(stm32_hal PUBLIC project_config)
 endif(USE_HAL_DRIVER)
-file(GLOB_RECURSE stm32_hal_sources "STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Src/${hal_src_glob_expr}")
-message("stm32_hal_sources = ${stm32_hal_sources}")
-target_sources(stm32_hal PUBLIC ${stm32_hal_sources})
-
-
-
-#[[
-foreach(src_file ${stm32_hal_sources})
-    string(REGEX MATCH ".*template.c" SOURCE_FILE_IS_TEMPLATE ${src_file})
-    if(SOURCE_FILE_IS_TEMPLATE)
-        list(REMOVE_ITEM stm32_hal_sources ${src_file})
-    endif() 
-endforeach(src_file ${stm32_hal_sources})
-target_sources(stm32_hal PUBLIC "${stm32_hal_sources}")
-#]]
-
-target_link_libraries(stm32_hal PUBLIC cmsis_device)
-target_link_libraries(stm32_hal PUBLIC project_config)
-
-
-
-
-
-
-
 
 
 
