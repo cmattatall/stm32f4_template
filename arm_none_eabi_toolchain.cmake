@@ -215,31 +215,34 @@ endfunction(add_executable executable)
 endif(NOT COMMAND _add_executable)
 
 
+
+
+
 if(NOT COMMAND _add_library)
 function(add_library library)
     _add_library(${library} ${ARGN})
 
+    set(${library}_POSTBUILD_OBJDUMP OFF)
     get_target_property(type ${library} TYPE)
     if(type STREQUAL STATIC_LIBRARY)
         set(libbase "lib${library}")
         set(libname "${libbase}${STATIC_LIBRARY_SUFFIX}")
-        set(POSTBUILD_OBJDUMP ON)
+        set(${library}_POSTBUILD_OBJDUMP ON)
     elseif(type STREQUAL MODULE_LIBRARY)
         set(libbase "lib${library}")
         set(libname "${libbase}${MODULE_LIBRARY_SUFFIX}")
-        set(POSTBUILD_OBJDUMP ON)
+        set(${library}_POSTBUILD_OBJDUMP ON)
     elseif(type STREQUAL SHARED_LIBRARY)
         set(libbase "lib${library}")
         set(libname "${libbase}${SHARED_LIBRARY_SUFFIX}")
-        set(POSTBUILD_OBJDUMP ON)
+        set(${library}_POSTBUILD_OBJDUMP ON)
     elseif(type STREQUAL OBJECT_LIBRARY)
         set(libbase "lib${library}")
         set(libname "${libbase}${OBJECT_LIBRARY_SUFFIX}")
-        set(POSTBUILD_OBJDUMP ON)
+        set(${library}_POSTBUILD_OBJDUMP ON)
     endif()
 
-    # attach objdump post-build target to libs with source files
-    if(POSTBUILD_OBJDUMP)
+    if(${library}_POSTBUILD_OBJDUMP)
 
         if(CMAKE_LIBRARY_OUTPUT_DIRECTORY)
             set(LIBRARY_OUTPUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
@@ -252,6 +255,8 @@ function(add_library library)
             set(LIBRARY_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
         endif()
 
+        message("LIBRARY_OUTPUT_DIR = ${LIBRARY_OUTPUT_DIR}")
+
         set(LIBRARY_OBJDUMP_OUTPUT_DIR "${LIBRARY_OUTPUT_DIR}/objdump/${library}")
 
         if(NOT EXISTS "${LIBRARY_OUTPUT_DIR}")
@@ -259,14 +264,15 @@ function(add_library library)
         elseif(NOT IS_DIRECTORY "${LIBRARY_OUTPUT_DIR}")
             file(REMOVE_RECURSE "${LIBRARY_OUTPUT_DIR}")
             file(MAKE_DIRECTORY "${LIBRARY_OUTPUT_DIR}")
-        endif(NOT EXISTS "${LIBRARY_OUTPUT_DIR}")
-
+        endif()
+        
         if(NOT EXISTS "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
             file(MAKE_DIRECTORY "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
         elseif(NOT IS_DIRECTORY "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
             file(REMOVE_RECURSE "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
             file(MAKE_DIRECTORY "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
-        endif(NOT EXISTS "${LIBRARY_OBJDUMP_OUTPUT_DIR}")
+        endif()
+
 
         # post build tasks
         add_custom_target(${library}_postbuild ALL DEPENDS ${library})
@@ -278,7 +284,7 @@ function(add_library library)
             COMMAND ${CMAKE_OBJDUMP} -xh "${LIBRARY_OUTPUT_DIR}/${libname}" > "${LIBRARY_OBJDUMP_OUTPUT_DIR}/${libname}.lss"
             BYPRODUCTS "${LIBRARY_OBJDUMP_OUTPUT_DIR}/${libname}.lss"
         )
-    endif(POSTBUILD_OBJDUMP)
-    
+
+    endif(${library}_POSTBUILD_OBJDUMP)
 endfunction(add_library library)
 endif(NOT COMMAND _add_library)
