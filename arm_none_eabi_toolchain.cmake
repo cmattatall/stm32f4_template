@@ -23,7 +23,7 @@ execute_process(
 )
 
 if(TOOLCHAIN_GCC_SYMLINK_NOT_FOUND)
-    abort("Could not find ${TOOLCHAIN_GCC_EXE}")
+    message(FATAL_ERROR "Could not find ${TOOLCHAIN_GCC_EXE}")
 endif(TOOLCHAIN_GCC_SYMLINK_NOT_FOUND)
 
 if(MINGW OR CYGWIN OR WIN32)
@@ -36,18 +36,18 @@ elseif(UNIX AND NOT APPLE)
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 elseif(APPLE)
-    abort("Apple not supported yet")
+    message(FATAL_ERROR "Apple not supported yet")
 else()
-    abort("${CMAKE_HOST_SYSTEM_NAME} not supported")
+    message(FATAL_ERROR "${CMAKE_HOST_SYSTEM_NAME} not supported")
 endif()
 
 
 if(NOT TOOLCHAIN_GCC_TRUE_PATH)
-    abort("TOOLCHAIN_GCC_TRUE_PATH not defined. Something went wrong during toolchain configuration")
+    message(FATAL_ERROR "TOOLCHAIN_GCC_TRUE_PATH not defined. Something went wrong during toolchain configuration")
 endif(NOT TOOLCHAIN_GCC_TRUE_PATH)
 
 if(TOOLCHAIN_GCC_TRUE_PATH_NOT_FOUND)
-    abort("Could not follow symlink from ${TOOLCHAIN_GCC_SYMLINK_PATH}")
+    message(FATAL_ERROR "Could not follow symlink from ${TOOLCHAIN_GCC_SYMLINK_PATH}")
 endif(TOOLCHAIN_GCC_TRUE_PATH_NOT_FOUND)
 
 get_filename_component(TOOLCHAIN_BIN_DIR ${TOOLCHAIN_GCC_TRUE_PATH} DIRECTORY)
