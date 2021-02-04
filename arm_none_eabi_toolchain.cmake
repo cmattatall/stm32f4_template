@@ -5,15 +5,11 @@ set(CMAKE_SYSTEM_PROCESSOR ARM)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 set(TOOLCHAIN_PREFIX arm-none-eabi)
 
-####################################
-### USER PUTS OTHER DEFINES HERE
-####################################
-
-set(LINKER_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/linker_script.ld")
-
-# @todo THIS SHOULD BE LATER MADE PART OF A CMAKE.IN CONFIG FILE 
-# reference for options https://gcc.gnu.org/onlinedocs/gcc/ARM-Options.html
-set(arch_options "-mlittle-endian --specs=nosys.specs -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16")
+# USER PROVIDES TARGET CONFIG FILE OVER CLI WITH
+# -DTARGET_CONFIG_FILE=<PATH_TO_YOUR_TARGET_CONFIG_FILE>
+if(TARGET_CONFIG_FILE)
+    include("${TARGET_CONFIG_FILE}")
+endif(TARGET_CONFIG_FILE)
 
 
 if(MINGW OR CYGWIN OR WIN32)
@@ -51,7 +47,32 @@ elseif(UNIX AND NOT APPLE)
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 elseif(APPLE)
-    message(FATAL_ERROR "Apple not supported yet")
+
+    execute_process(
+        COMMAND greadlink --version
+        RESULT_VARIABLE READLINK_NOT_INSTALLED
+    )
+
+    if(READLINK_NOT_INSTALLED)
+
+        execute_process(
+            COMMAND brew install coreutils
+            RESULT_VARIABLE READLINK_INSTALL_ERR
+        )
+    
+    endif(READLINK_NOT_INSTALLED)
+
+    if(READLINK_INSTALL_ERR)
+        message(FATAL_ERROR "Could not install greadlink. Please try installing it manually")
+    endif(READLINK_INSTALL_ERR)
+
+    execute_process(
+        COMMAND greadlink -f ${TOOLCHAIN_GCC_SYMLINK_PATH}
+        OUTPUT_VARIABLE TOOLCHAIN_GCC_TRUE_PATH
+        RESULT_VARIABLE TOOLCHAIN_GCC_TRUE_PATH_NOT_FOUND
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    
 else()
     message(FATAL_ERROR "${CMAKE_HOST_SYSTEM_NAME} not supported")
 endif()
@@ -142,15 +163,15 @@ set(CMAKE_STATIC_LIBRARY_SUFFIX_CXX ${STATIC_LIBRARY_SUFFIX})
 
 
 set(shared_options "-ffunction-sections -fdata-sections")
-set(CMAKE_ASM_FLAGS_INIT "${arch_options} ${shared_options}")
-set(CMAKE_C_FLAGS_INIT "${arch_options} ${shared_options}")
-set(CMAKE_CXX_FLAGS_INIT "${arch_options} ${shared_options} -fno-rtti -fno-exceptions")
+set(CMAKE_ASM_FLAGS_INIT "${TARGET_CONFIG_ARCH_OPTIONS} ${shared_options}")
+set(CMAKE_C_FLAGS_INIT "${TARGET_CONFIG_ARCH_OPTIONS} ${shared_options}")
+set(CMAKE_CXX_FLAGS_INIT "${TARGET_CONFIG_ARCH_OPTIONS} ${shared_options} -fno-rtti -fno-exceptions")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-Wl,--gc-sections,-Map=map.txt")
 
-if(LINKER_SCRIPT)
+if(TARGET_CONFIG_LINKER_SCRIPT)
     #if user defined a linker script. Otherwise we can let the toolchain look for it.
-    set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS_INIT} -Wl,-T,${LINKER_SCRIPT}")
-endif(LINKER_SCRIPT)
+    set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS_INIT} -Wl,-T,${TARGET_CONFIG_LINKER_SCRIPT}")
+endif(TARGET_CONFIG_LINKER_SCRIPT)
 
 
 mark_as_advanced(
@@ -180,10 +201,10 @@ mark_as_advanced(
     BINUTILS_SEARCH_HINTS
     TOOLCHAIN_GCC_SYMLINK_PATH
     TOOLCHAIN_GCC_SYMLINK_NOT_FOUND
-    LINKER_SCRIPT
     STATIC_LIBRARY_SUFFIX
     shared_options
-    arch_options
+    TARGET_CONFIG_ARCH_OPTIONS
+    TARGET_CONFIG_LINKER_SCRIPT
 )
 
 
