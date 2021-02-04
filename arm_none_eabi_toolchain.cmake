@@ -27,6 +27,7 @@ if(TOOLCHAIN_GCC_SYMLINK_NOT_FOUND)
 endif(TOOLCHAIN_GCC_SYMLINK_NOT_FOUND)
 
 if(MINGW OR CYGWIN OR WIN32)
+    # win32 doesn't have the concept of symbolic links
     set(TOOLCHAIN_GCC_TRUE_PATH ${TOOLCHAIN_GCC_SYMLINK_PATH})
 elseif(UNIX AND NOT APPLE)
     execute_process(
@@ -148,10 +149,31 @@ function(add_executable executable)
     set_target_properties(${executable} PROPERTIES OUTPUT_NAME ${executable_output_name})
 
     if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
-        set(OUTPUT_DIR_BASE "${CMAKE_CURRENT_BINARY_DIR}")
+        set(RUNTIME_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    elseif(CMAKE_BUILD_TYPE)
+        string(TO_UPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE_UPPER)
+        if(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CMAKE_BUILD_TYPE_UPPER})
+            set(RUNTIME_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CMAKE_BUILD_TYPE_UPPER}}")
+        endif(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CMAKE_BUILD_TYPE_UPPER})
     else()
-        set(OUTPUT_DIR_BASE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+        set(RUNTIME_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
     endif(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+
+    set(RUNTIME_OUTPUT_OBJDUMP_DIR "${RUNTIME_OUTPUT_DIR}/objdump/${executable}")
+
+    if(NOT EXISTS "${RUNTIME_OUTPUT_DIR}")
+        file(MAKE_DIRECTORY "${RUNTIME_OUTPUT_DIR}")
+    elseif(NOT IS_DIRECTORY "${RUNTIME_OUTPUT_DIR}")
+        file(REMOVE_RECURSE "${RUNTIME_OUTPUT_DIR}")
+        file(MAKE_DIRECTORY "${RUNTIME_OUTPUT_DIR}")
+    endif()
+
+    if(NOT EXISTS "${RUNTIME_OUTPUT_OBJDUMP_DIR}")
+        file(MAKE_DIRECTORY "${RUNTIME_OUTPUT_OBJDUMP_DIR}")
+    elseif(NOT IS_DIRECTORY "${RUNTIME_OUTPUT_OBJDUMP_DIR}")
+        file(REMOVE_RECURSE "${RUNTIME_OUTPUT_OBJDUMP_DIR}")
+        file(MAKE_DIRECTORY "${RUNTIME_OUTPUT_OBJDUMP_DIR}")
+    endif()
 
     add_custom_target(${executable}_postbuild ALL DEPENDS ${executable})
     add_custom_command( 
@@ -159,7 +181,7 @@ function(add_executable executable)
         POST_BUILD
         DEPENDS ${executable}
         COMMENT "Built executable \"${executable}\" with the following size:"
-        COMMAND ${CMAKE_SIZE} -B "${OUTPUT_DIR_BASE}/${executable_output_name}"
+        COMMAND ${CMAKE_SIZE} -B "${RUNTIME_OUTPUT_DIR}/${executable_output_name}"
     )
 
     add_custom_command( 
@@ -167,8 +189,8 @@ function(add_executable executable)
         POST_BUILD
         DEPENDS ${executable}
         COMMENT "Produced ihex output from ${executable}"
-        COMMAND ${CMAKE_OBJCOPY} -O ihex -I elf32-little "${OUTPUT_DIR_BASE}/${executable_output_name}" "${OUTPUT_DIR_BASE}/${executable}.hex"
-        BYPRODUCTS "${OUTPUT_DIR_BASE}/${executable}.hex"
+        COMMAND ${CMAKE_OBJCOPY} -O ihex -I elf32-little "${RUNTIME_OUTPUT_DIR}/${executable_output_name}" "${RUNTIME_OUTPUT_OBJDUMP_DIR}/${executable}.hex"
+        BYPRODUCTS "${RUNTIME_OUTPUT_OBJDUMP_DIR}/${executable}.hex"
     )
 
     add_custom_command( 
@@ -176,8 +198,8 @@ function(add_executable executable)
         POST_BUILD
         DEPENDS ${executable}
         COMMENT "Produced binary output from ${executable}"
-        COMMAND ${CMAKE_OBJCOPY} -O binary -I elf32-little "${OUTPUT_DIR_BASE}/${executable_output_name}" "${OUTPUT_DIR_BASE}/${executable}.bin"
-        BYPRODUCTS "${OUTPUT_DIR_BASE}/${executable}.bin"
+        COMMAND ${CMAKE_OBJCOPY} -O binary -I elf32-little "${RUNTIME_OUTPUT_DIR}/${executable_output_name}" "${RUNTIME_OUTPUT_OBJDUMP_DIR}/${executable}.bin"
+        BYPRODUCTS "${RUNTIME_OUTPUT_OBJDUMP_DIR}/${executable}.bin"
     )
 
     add_custom_command( 
@@ -185,8 +207,8 @@ function(add_executable executable)
         POST_BUILD
         DEPENDS ${executable}
         COMMENT "Produced list file from ${executable}"
-        COMMAND ${CMAKE_OBJDUMP} -xh "${OUTPUT_DIR_BASE}/${executable_output_name}" > "${OUTPUT_DIR_BASE}/${executable}.lss"
-        BYPRODUCTS "${OUTPUT_DIR_BASE}/${executable}.lss"
+        COMMAND ${CMAKE_OBJDUMP} -xh "${RUNTIME_OUTPUT_DIR}/${executable_output_name}" > "${RUNTIME_OUTPUT_OBJDUMP_DIR}/${executable}.lss"
+        BYPRODUCTS "${RUNTIME_OUTPUT_OBJDUMP_DIR}/${executable}.lss"
     )
 
 endfunction(add_executable executable)
@@ -221,6 +243,11 @@ function(add_library library)
 
         if(CMAKE_LIBRARY_OUTPUT_DIRECTORY)
             set(LIBRARY_OUTPUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        elseif(CMAKE_BUILD_TYPE)
+            string(TO_UPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE_UPPER)
+            if(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${CMAKE_BUILD_TYPE_UPPER})
+                set(LIBRARY_OUTPUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY_${CMAKE_BUILD_TYPE_UPPER}}")
+            endif(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${CMAKE_BUILD_TYPE_UPPER})
         else()
             set(LIBRARY_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
         endif()
